@@ -1,9 +1,22 @@
 import os
+import threading
+from flask import Flask
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))
+
+# Render-কে খুশি রাখার জন্য ছোট্ট ওয়েব সার্ভার
+app_flask = Flask(__name__)
+
+@app_flask.route('/')
+def home():
+    return "Bot is running!"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app_flask.run(host="0.0.0.0", port=port)
 
 FILE_DB = {}
 
@@ -19,7 +32,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await update.message.reply_text("❌ ফাইল পাওয়া যায়নি।")
         return
-
     await update.message.reply_text(
         "♾️ আনলিমিটেড ফাইল স্টোর বটে স্বাগতম\n\n"
         "আমাকে যেকোনো ফাইল পাঠাও, আমি পার্মানেন্ট লিংক বানিয়ে দেব।"
@@ -34,6 +46,8 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ সেভ হয়েছে!\n\n🔗 শেয়ার লিংক:\n{share_link}")
 
 def main():
+    # Flask আলাদা থ্রেডে চালাও
+    threading.Thread(target=run_flask, daemon=True).start()
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_file))
